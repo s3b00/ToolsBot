@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("mydb.db") # или :memory: чтобы сохранить в RAM
+conn = sqlite3.connect("mydb.db")
 cursor = conn.cursor()
 
 def blacklist_add(userid, groupid):

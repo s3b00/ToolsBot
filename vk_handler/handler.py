@@ -14,3 +14,6 @@ def sendMessage(message: str, event):
         message=message,
         chat_id = event.chat_id
     )
+
+def getUsers(id: str):
+    return vk.users.get(user_ids=id)
