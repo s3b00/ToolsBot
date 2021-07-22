@@ -123,11 +123,11 @@ for event in longpoll.listen():
                             else:
                                 sendMessage('У вас уже запущена игра! Сначала следует доиграть ее!', event)
                         if '/t_register_roullete' in command:
-                            id = str(event.object.message['from_id'])
-                            current_game_players = roullets_games_get_game(event.chat_id)
-                            current_game = roullets_get_game(event.chat_id)
-                            limit = int(current_game[1]) - len(current_game_players)
                             if isInRoullets(event.chat_id):
+                                id = str(event.object.message['from_id'])
+                                current_game_players = roullets_games_get_game(event.chat_id)
+                                current_game = roullets_get_game(event.chat_id)
+                                limit = int(current_game[1]) - len(current_game_players)
                                 if limit > 0:
                                     if not isInRoulletsGames(event.chat_id, id):
                                         roullets_games_add(event.chat_id, id)
@@ -142,7 +142,7 @@ for event in longpoll.listen():
                             if isInRoullets(event.chat_id):
                                 current_game_players = roullets_games_get_game(event.chat_id)
 
-                                if len(current_game_players) > 0:
+                                if len(current_game_players) > 1:
                                     random.shuffle(current_game_players)
                                     for x in current_game_players[:-1]:
                                         user = getUsers(x[1])[0]
@@ -162,7 +162,19 @@ for event in longpoll.listen():
                                         roullets_games_remove(x[1], event.chat_id)
                                     roullets_remove(event.chat_id)
                                 else:
-                                    sendMessage('Рулетка на ноль игроков? Так не пойдет!', event)
+                                    sendMessage('Рулетка без игроков игроков? Так не пойдет!', event)
+                            else:
+                                sendMessage('Игра даже еще не зарегистрирована!', event)
+                        if '/t_end_roullete' in command:
+                            players = roullets_games_get_game(event.chat_id)
+                            if players:
+                                for x in players:
+                                    roullets_games_remove(x[1], x[0])
+                                
+                                roullets_remove(event.chat_id)
+                                sendMessage('Ваша игра закончена!', event)
+                            else:
+                                sendMessage('Вы даже не играли!', event)
                         if '/t_number' in command:
                             req = requests.get(f'http://numbersapi.com/{random.randint(1,1000)}/trivia')
                             sendMessage(GoogleTranslator(source='auto', target='ru').translate(req.text), event)
@@ -266,28 +278,30 @@ for event in longpoll.listen():
                         if '/t_stats_pidors' in command:
                             if isInPidor_games_members(event.chat_id):
                                 games = pidors_games_get_group(event.chat_id)
+                                if games:
+                                    lastWinner = getUsers(games[-1][2])[0]
+                                    last_winner_id = lastWinner['id']
+                                    last_winner_name = lastWinner['first_name']
 
-                                lastWinner = getUsers(games[-1][2])[0]
-                                last_winner_id = lastWinner['id']
-                                last_winner_name = lastWinner['first_name']
+                                    winners = []
 
-                                winners = []
-
-                                for game in games:
-                                    if game[2] not in winners:
-                                        winners.append(game[2])
-                                
-                                winners_total = []
-                                for winner in winners:
-                                    win = getUsers(winner)[0]
-                                    win_id = lastWinner['id']
-                                    win_name = lastWinner['first_name']
-                                    winners_total.append(f'[id{win_id}|{win_name}]: {len(pidors_get_user_group(winner, event.chat_id))}')
+                                    for game in games:
+                                        if game[2] not in winners:
+                                            winners.append(game[2])
+                                    
+                                    winners_total = []
+                                    for winner in winners:
+                                        win = getUsers(winner)[0]
+                                        win_id = lastWinner['id']
+                                        win_name = lastWinner['first_name']
+                                        winners_total.append(f'[id{win_id}|{win_name}]: {len(pidors_get_user_group(winner, event.chat_id))}')
 
 
-                                result_of_winners = '\n' + '\n'.join(winners_total)
+                                    result_of_winners = '\n' + '\n'.join(winners_total)
 
-                                sendMessage(f"Количество сыгранных игр: {len(games)}\n{'' if len(games) == 0 else f'Последний победитель: [id{last_winner_id}|{last_winner_name}]'} \n\n{'' if len(games) == 0 else f'Количество побед у пользователей: {result_of_winners}'}", event)
+                                    sendMessage(f"Количество сыгранных игр: {len(games)}\n{'' if len(games) == 0 else f'Последний победитель: [id{last_winner_id}|{last_winner_name}]'} \n\n{'' if len(games) == 0 else f'Количество побед у пользователей: {result_of_winners}'}", event)
+                                else:
+                                    sendMessage('Вы еще не запускали игру "пидор дня"!', event)
                             else:
                                 sendMessage(f'ВЫ еще не зарегистрировались своей беседой в игре! Напишите /t_pidors!', event)
                         if '/t_currency_rates' in command:

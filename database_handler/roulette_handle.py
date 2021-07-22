@@ -21,6 +21,8 @@ def roullets_remove(groupid: str):
     """)
     conn.commit()
 
+
+
 def roullets_games_remove(userid: str, groupid: str):
     cursor.execute(f"""DELETE FROM roullets_games
         WHERE groupid='{groupid}' or userid='{userid}'
