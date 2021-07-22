@@ -1,3 +1,4 @@
+from database_handler.limits_handle import command_limits_add, command_limits_update, getLimit, isInCommand_limits
 from database_handler.key_handle import chat_keys_add, chat_keys_get, chat_keys_remove, getKey, isInChat_keys
 from database_handler.pidor_handle import isInPidor_games_members, isInPidor_games_today, pidor_games_add, pidor_games_get, pidor_games_members_add, pidor_games_members_get, pidors_add, pidors_games_get_group, pidors_get_user_group
 from database_handler.roulette_handle import isInRoullets, isInRoulletsGames, roullets_add, roullets_games_add, roullets_games_get_game, roullets_games_remove, roullets_get, roullets_games_get, roullets_get_game, roullets_remove
@@ -43,7 +44,8 @@ for event in longpoll.listen():
                 if commands:
                     with open('commands', 'a') as log:
                         log.write('\n' + str(event.message.text).lower())
-                    for command in commands[:10]:
+                    
+                    for command in commands[:getLimit(event.chat_id) and int(getLimit(event.chat_id)[1]) or 10]:
                         if '/t_help' in command:
                             sendMessage(help_message, event)
                             break
@@ -289,10 +291,28 @@ for event in longpoll.listen():
                             else:
                                 sendMessage(f'ВЫ еще не зарегистрировались своей беседой в игре! Напишите /t_pidors!', event)
                         if '/t_currency_rates' in command:
-                            c = CurrencyRates()
                             b = BtcConverter()
-                            
-                            sendMessage(f"{c.get_rates('usd')}\n BTC:{b.get_latest_price('USD')}$", event)
+                            c = CurrencyRates()
+
+                            rub = c.convert('USD', 'RUB', 1)
+                            eur = c.convert('USD', 'EUR', 1)
+
+                            sendMessage(f"USD: 1 \n RUB: {rub}₽ \n EUR: {eur}€\n BTC: {b.get_latest_price('USD')}$ за 1BTC", event)
+                        if '/t_commands_limit' in command:
+                            try:
+                                limit = command.split(' ')[1]
+                                if int(limit) > 0 and int(limit) < 21:
+                                    if isInCommand_limits(event.chat_id):
+                                        command_limits_update(event.chat_id, limit)
+                                        sendMessage('Вы успешно изменили лимит по командам за раз!', event)
+                                    else:
+                                        command_limits_add(event.chat_id, limit)
+                                        sendMessage('Вы успешно установили лимит по командам за раз!', event)
+                                else:
+                                    sendMessage('Лимит может быть от 1 до 20!', event)
+                            except Exception as e:
+                                print(e)
+                                sendMessage('Ошибка! Попробуйте вызвать меня иначе!', event)
             except Exception as e:
                 print(e)
                 sendMessage('❗ Что-то произошло, я ничего не могу с этим поделать!!', event)
