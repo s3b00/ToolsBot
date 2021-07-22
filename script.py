@@ -8,6 +8,9 @@ import random, vk_api, vk, sqlite3, datetime
 from deep_translator import GoogleTranslator
 from help_message import help_message
 
+from forex_python.converter import CurrencyRates
+from forex_python.bitcoin import BtcConverter
+
 from vk_handler.handler import getUsers, sendMessage
 
 import re, requests
@@ -40,7 +43,7 @@ for event in longpoll.listen():
                 if commands:
                     with open('commands', 'a') as log:
                         log.write('\n' + str(event.message.text).lower())
-                    for command in commands:
+                    for command in commands[:10]:
                         if '/t_help' in command:
                             sendMessage(help_message, event)
                             break
@@ -76,8 +79,7 @@ for event in longpoll.listen():
                                     sendMessage('Ключ успешно был удален', event)
                                 except Exception as e:
                                     print(e)
-                                    sendMessage('Произошла ошибка при удалении! Попробуйте иначе!', event)
-                        
+                                    sendMessage('Произошла ошибка при удалении! Попробуйте иначе!', event)            
                         if '/t_echo' in command:
                             sendMessage('Привет!', event)
                         if '/t_mute' in command:
@@ -286,6 +288,11 @@ for event in longpoll.listen():
                                 sendMessage(f"Количество сыгранных игр: {len(games)}\n{'' if len(games) == 0 else f'Последний победитель: [id{last_winner_id}|{last_winner_name}]'} \n\n{'' if len(games) == 0 else f'Количество побед у пользователей: {result_of_winners}'}", event)
                             else:
                                 sendMessage(f'ВЫ еще не зарегистрировались своей беседой в игре! Напишите /t_pidors!', event)
+                        if '/t_currency_rates' in command:
+                            c = CurrencyRates()
+                            b = BtcConverter()
+                            
+                            sendMessage(f"{c.get_rates('usd')}\n BTC:{b.get_latest_price('USD')}$", event)
             except Exception as e:
                 print(e)
                 sendMessage('❗ Что-то произошло, я ничего не могу с этим поделать!!', event)
