@@ -1,3 +1,4 @@
+from database_handler.banlist_handle import banlist_add, banlist_remove, isInBanlist
 from database_handler.limits_handle import command_limits_add, command_limits_update, getLimit, isInCommand_limits
 from database_handler.key_handle import chat_keys_add, chat_keys_get, chat_keys_remove, getKey, isInChat_keys
 from database_handler.pidor_handle import isInPidor_games_members, isInPidor_games_today, pidor_games_add, pidor_games_get, pidor_games_members_add, pidor_games_members_get, pidors_add, pidors_games_get_group, pidors_get_user_group
@@ -8,17 +9,15 @@ from database_handler.blacklist_handle import blacklist_add, blacklist_get, blac
 import random, vk_api, vk, sqlite3, datetime
 from deep_translator import GoogleTranslator
 from help_message import help_message
-
-from forex_python.converter import CurrencyRates
+from vk_api.utils import get_random_id
 from forex_python.bitcoin import BtcConverter
 
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_handler.handler import getUsers, sendMessage
+from vk_api.utils import get_random_id
+
 
 import re, requests
-
-from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
-
-
 
 vk_session = vk_api.VkApi(token='9453184fa64a12c3ada4474945aef4fc9c1a94a83c0f43240e9a53c0af8d77fe835e74798544c0b284529')
 longpoll = VkBotLongPoll(vk_session, 205956256)
@@ -34,12 +33,32 @@ for event in longpoll.listen():
         if event.from_chat:
             try:
                 commands = re.findall('\/\w+ ?[\w\@\]\[\| ]*', str(event.message.text).lower())
+
+                if 'action' in event.message:
+                    if event.message.action['type'] == 'chat_invite_user':
+                        users = getUsers(event.object['message']['from_id'])[0]
+                        members = vk.messages.getConversationMembers(group_id=event.chat_id, peer_id=2000000000+int(event.chat_id))['items']
+                        isAdmin = False
+
+                        for x in members:
+                            if x['member_id'] == user['id'] and 'is_admin' in x:
+                                isAdmin = True
+                        
+                        if isAdmin:
+                            if isInBanlist(event.chat_id, event.message.action['member_id']):
+                                banlist_remove(event.chat_id, event.message.action['member_id'])
+                            else:
+                                sendMessage('Его не было в банлисте!', event)
+                        else:
+                            vk.messages.removeChatUser(chat_id=event.chat_id, user_id=event.message.action['member_id'])
+                    
                 if isInBlackList(str(event.object['message']['from_id']), str(event.chat_id)) and '/tools_suicide' not in str(event.message.text).lower():
                     try:
                         vk.messages.delete(delete_for_all=1, conversation_message_ids = [event.object.message['conversation_message_id']], peer_id=event.object.message['peer_id'])
                     except:
-                        sendMessage('Я не смог удалить твое сообщение, в знак слабости убираю тебя из черного списка!', event)
-                        blacklist_remove(str(event.object['message']['from_id']), event.chat_id)
+                        if not 'action' in event.message:
+                            sendMessage('Я не смог удалить твое сообщение, в знак слабости убираю тебя из черного списка!', event)
+                            blacklist_remove(str(event.object['message']['from_id']), event.chat_id)
 
                 if commands:
                     with open('commands', 'a') as log:
@@ -104,6 +123,32 @@ for event in longpoll.listen():
                                     sendMessage('Пользователь снова может писать сюда!', event)
                                 else:
                                     sendMessage('❗ Этого пользователя нет в черном списке!', event)
+                        if '/t_ban' in command:
+                            try:
+                                receiver = re.search(r'id(\d+)\|', command.split(' ')[1])[1]
+                                user = getUsers(str(event.object.message['from_id']))[0]
+                                members = vk.messages.getConversationMembers(group_id=event.chat_id, peer_id=2000000000+int(event.chat_id))['items']
+                                isAdmin = False
+                                isReceiverAdmin = False
+
+                                for x in members:
+                                    if x['member_id'] == user['id'] and 'is_admin' in x:
+                                        isAdmin = True
+                                    if x['member_id'] == receiver and 'is_admin' in x:
+                                        isReceiverAdmin = True
+                                
+                                if isAdmin:
+                                    if not isReceiverAdmin:
+                                        vk.messages.removeChatUser(chat_id=event.chat_id, user_id=receiver)
+                                        banlist_add(event.chat_id, receiver)
+                                        sendMessage('Пользователь успешно был заблокирован!', event)
+                                    else:
+                                        sendMessage('Пользователь является админом, его нельзя исключить и забанить!', event)
+                                else:
+                                    sendMessage('Вы не админ, даже не пробуйте банить!', event)
+                            except Exception as e:
+                                print(e)
+                                sendMessage(f'Произошла ошибка при инициализации команды, попробуйте написать ее правильно! /t_ban @user', event)
                         if '/t_roullete' in command:
                             try:
                                 limit = command.split(' ')[1] 
@@ -152,11 +197,25 @@ for event in longpoll.listen():
                                     name = user['first_name']
                                     sendMessage(f'Остался последний патрон, последний участник [id{current_game_players[-1][1]}|{name}]. Не повезло, ты выбываешь. Игра окончена!', event)
                                     
-                                    current_game = roullets_get_game(event.chat_id)
-                                    if current_game[2] == 'mute':
-                                        blacklist_add(current_game_players[-1][1], event.chat_id)
-                                    elif current_game[2] == 'ban':
-                                        vk.messages.removeChatUser(chat_id=event.chat_id, user_id=current_game_players[-1][1])
+                                    members = vk.messages.getConversationMembers(group_id=event.chat_id, peer_id=2000000000+int(event.chat_id))['items']
+                                    flag = True
+
+                                    for x in members:
+                                        if x['member_id'] == user['id'] and 'is_admin' in x:
+                                            sendMessage('Проиграл администратор, отделается предупреждением!', event)
+                                            flag = False
+
+                                    if flag:
+                                        current_game = roullets_get_game(event.chat_id)
+                                        if current_game[2] == 'mute':
+                                            blacklist_add(current_game_players[-1][1], event.chat_id)
+                                        elif current_game[2] == 'kick':
+                                            vk.messages.removeChatUser(chat_id=event.chat_id, user_id=current_game_players[-1][1])
+                                        elif current_game[2] == 'ban':
+                                            vk.messages.removeChatUser(chat_id=event.chat_id, user_id=current_game_players[-1][1])
+                                            banlist_add(event.chat_id, current_game_players[-1][1])
+                                            sendMessage('Пользователь был забанен в этой беседе!', event)
+                                            
            
                                     for x in current_game_players:
                                         roullets_games_remove(x[1], event.chat_id)
@@ -175,6 +234,20 @@ for event in longpoll.listen():
                                 sendMessage('Ваша игра закончена!', event)
                             else:
                                 sendMessage('Вы даже не играли!', event)
+                        if '/t_players_roullete' in command:
+                            if isInRoullets(event.chat_id):
+                                players = roullets_games_get_game(event.chat_id)
+
+                                result = ['Игроки в этой рулетке:\n']
+                                for x in players:
+                                    user = getUsers(x[1])[0]
+                                    user_first_name = user['first_name']
+                                    user_id = user['id']
+                                    result.append(f'\n[id{user_id}|{user_first_name}]')
+
+                                sendMessage(''.join(result), event)
+                            else:
+                                sendMessage('Вы еще не запустили игру. Участников нет!', event)
                         if '/t_number' in command:
                             req = requests.get(f'http://numbersapi.com/{random.randint(1,1000)}/trivia')
                             sendMessage(GoogleTranslator(source='auto', target='ru').translate(req.text), event)
@@ -327,6 +400,18 @@ for event in longpoll.listen():
                             except Exception as e:
                                 print(e)
                                 sendMessage('Ошибка! Попробуйте вызвать меня иначе!', event)
+                        if '/t_report' in command:
+                            user = getUsers(str(event.object['message']['from_id']))[0]
+
+                            message = f"От: [id{user['id']}|{user['first_name']}]\n\n" + ' '.join(command.split(' ')[1:])
+                            vk.messages.send(
+                                key = ('df22dfea502e319ffbace71e393d331d61c85d3d'),      
+                                server = ('https://lp.vk.com/wh205956256'),
+                                ts=('2'),
+                                random_id = get_random_id(),
+                                message=message,
+                                user_id = 307841071,
+                            )
             except Exception as e:
                 print(e)
                 sendMessage('❗ Что-то произошло, я ничего не могу с этим поделать!!', event)
