@@ -413,6 +413,8 @@ for event in longpoll.listen():
                                 message=message,
                                 user_id = 307841071,
                             )
+                        if '/t_ping' in command:
+                            sendMessage('@all', event)
             except Exception as e:
                 print(e)
                 sendMessage('❗ Что-то произошло, я ничего не могу с этим поделать!!', event)
