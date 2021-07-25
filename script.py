@@ -32,8 +32,6 @@ for event in longpoll.listen():
     if event.type == VkBotEventType.MESSAGE_NEW:
         if event.from_chat:
             try:
-                commands = re.findall('\/\w+ ?[\w\@\]\[\| ]*', str(event.message.text).lower())
-
                 if 'action' in event.message:
                     if event.message.action['type'] == 'chat_invite_user':
                         users = getUsers(event.object['message']['from_id'])[0]
@@ -51,7 +49,8 @@ for event in longpoll.listen():
                                 sendMessage('Его не было в банлисте!', event)
                         else:
                             vk.messages.removeChatUser(chat_id=event.chat_id, user_id=event.message.action['member_id'])
-                    
+                    continue   
+                
                 if isInBlackList(str(event.object['message']['from_id']), str(event.chat_id)) and '/tools_suicide' not in str(event.message.text).lower():
                     try:
                         vk.messages.delete(delete_for_all=1, conversation_message_ids = [event.object.message['conversation_message_id']], peer_id=event.object.message['peer_id'])
@@ -59,6 +58,8 @@ for event in longpoll.listen():
                         if not 'action' in event.message:
                             sendMessage('Я не смог удалить твое сообщение, в знак слабости убираю тебя из черного списка!', event)
                             blacklist_remove(str(event.object['message']['from_id']), event.chat_id)
+                
+                commands = re.findall('\/\w+ ?[\w\@\]\[\| ]*', str(event.message.text).lower())
 
                 if commands:
                     with open('commands', 'a') as log:
@@ -365,8 +366,8 @@ for event in longpoll.listen():
                                     winners_total = []
                                     for winner in winners:
                                         win = getUsers(winner)[0]
-                                        win_id = lastWinner['id']
-                                        win_name = lastWinner['first_name']
+                                        win_id = win['id']
+                                        win_name = win['first_name']
                                         winners_total.append(f'[id{win_id}|{win_name}]: {len(pidors_get_user_group(winner, event.chat_id))}')
 
 
