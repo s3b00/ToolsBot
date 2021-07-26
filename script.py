@@ -404,7 +404,7 @@ for event in longpoll.listen():
                         if '/t_report' in command:
                             user = getUsers(str(event.object['message']['from_id']))[0]
 
-                            message = f"От: [id{user['id']}|{user['first_name']}]\n\n" + ' '.join(command.split(' ')[1:])
+                            message = f"От: [id{user['id']}|{user['first_name']}]\n\n" + ' '.join(event.message.text.split(' ')[1:])
                             vk.messages.send(
                                 key = ('df22dfea502e319ffbace71e393d331d61c85d3d'),      
                                 server = ('https://lp.vk.com/wh205956256'),
