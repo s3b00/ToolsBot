@@ -16,9 +16,9 @@ def command_limits_update(groupid, limit):
     """)
     conn.commit()
 
-def command_limits_remove(groupid: str, limit):
+def command_limits_remove(groupid: str):
     cursor.execute(f"""DELETE FROM command_limits
-        WHERE groupid='{groupid}' and limit='{limit}'
+        WHERE groupid='{groupid}'
     """)
     conn.commit()
 

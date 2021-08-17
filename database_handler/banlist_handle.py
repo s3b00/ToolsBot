@@ -11,7 +11,7 @@ def banlist_add(groupid, userid):
 
 def banlist_remove(groupid: str, userid: str):
     cursor.execute(f"""DELETE FROM banlist
-        WHERE user_id='{userid}' AND groupid='{groupid}'
+        WHERE userid='{userid}' AND groupid='{groupid}'
     """)
     conn.commit()
 

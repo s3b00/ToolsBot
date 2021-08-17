@@ -10,7 +10,9 @@ import random, vk_api, vk, sqlite3, datetime
 from deep_translator import GoogleTranslator
 from help_message import help_message
 from vk_api.utils import get_random_id
+
 from forex_python.bitcoin import BtcConverter
+from forex_python.converter import CurrencyRates
 
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_handler.handler import getUsers, sendMessage
@@ -54,6 +56,7 @@ for event in longpoll.listen():
                 if isInBlackList(str(event.object['message']['from_id']), str(event.chat_id)) and '/tools_suicide' not in str(event.message.text).lower():
                     try:
                         vk.messages.delete(delete_for_all=1, conversation_message_ids = [event.object.message['conversation_message_id']], peer_id=event.object.message['peer_id'])
+                        continue
                     except:
                         if not 'action' in event.message:
                             sendMessage('Я не смог удалить твое сообщение, в знак слабости убираю тебя из черного списка!', event)
@@ -292,7 +295,10 @@ for event in longpoll.listen():
                                 hero = re.search(' (.+)', command).groups()[0]
                                 
                                 charter_description = get_charter(hero)
-                                sendMessage(GoogleTranslator(source='auto', target='ru').translate(charter_description), event)
+                                try:
+                                    sendMessage(GoogleTranslator(source='en', target='ru').translate(charter_description), event)
+                                except:
+                                    sendMessage(charter_description, event)
                             except Exception as e:
                                 sendMessage(f'Чтобы воспользоваться этой командой, через пробел после команды напишите имя персонажа для поиска\n\n❗ KeyError: {e}', event)
                         if '/t_marvel_comics' in command:
@@ -302,7 +308,7 @@ for event in longpoll.listen():
                                 comic_search = get_comic(comic)
 
                                 comic_description = comic_search['description']
-                                desc = GoogleTranslator(source='auto', target='ru').translate(comic_description)
+                                desc = GoogleTranslator(source='en', target='ru').translate(comic_description)
                                 comic_title = comic_search['title']
                                 
                                 sendMessage(f'{comic_title} \n\n {desc}', event)
@@ -332,21 +338,20 @@ for event in longpoll.listen():
                                 now = datetime.datetime.now()
                                 today = now.strftime("%d-%m-%Y")
 
-                                if not isInPidor_games_today(event.chat_id, today):
-                                    members = vk.messages.getConversationMembers(group_id=event.chat_id, peer_id=2000000000+int(event.chat_id))
-                                    members_in_game = members['items']
-                                    random_user = members_in_game[random.randint(0, int(members['count']))]
-                                    id = int(+random_user['member_id'])
-                                    print(id)
+                                # if not isInPidor_games_today(event.chat_id, today):
+                                members = vk.messages.getConversationMembers(group_id=event.chat_id, peer_id=2000000000+int(event.chat_id))
+                                members_in_game = members['items']
+                                random_user = members_in_game[random.randint(0, int(members['count'] - 1))]
+                                id = int(+random_user['member_id'])
 
-                                    pidor_games_add(event.chat_id, today, random_user['member_id'])
-                                    pidors_add(event.chat_id, id)
+                                pidor_games_add(event.chat_id, today, random_user['member_id'])
+                                pidors_add(event.chat_id, id)
 
-                                    winner = getUsers(id)[0]
-                                    name = winner['first_name']
-                                    sendMessage(f'Сегодняшний пидор дня: [id{id}|{name}], с чем мы его и поздравляем!', event)
-                                else:
-                                    sendMessage(f'Вы уже играли в пидора дня сегодня! Текущее время на сервере: {now.strftime("%H:%M")}', event)
+                                winner = getUsers(id)[0]
+                                name = winner['first_name']
+                                sendMessage(f'Сегодняшний пидор дня: [id{id}|{name}], с чем мы его и поздравляем!', event)
+                                # else:
+                                #     sendMessage(f'Вы уже играли в пидора дня сегодня! Текущее время на сервере: {now.strftime("%H:%M")}', event)
                             else:
                                 sendMessage(f'ВЫ еще не зарегистрировались своей беседой в игре! Напишите /t_pidors!', event)
                         if '/t_stats_pidors' in command:
@@ -365,7 +370,7 @@ for event in longpoll.listen():
                                     
                                     winners_total = []
                                     for winner in winners:
-                                        win = getUsers(winner)[0]
+                                        win = getUsers(abs(int(winner)))[0]
                                         win_id = win['id']
                                         win_name = win['first_name']
                                         winners_total.append(f'[id{win_id}|{win_name}]: {len(pidors_get_user_group(winner, event.chat_id))}')
@@ -416,5 +421,5 @@ for event in longpoll.listen():
                         if '/t_ping' in command:
                             sendMessage('@all', event)
             except Exception as e:
-                print(e)
+                raise e
                 sendMessage('❗ Что-то произошло, я ничего не могу с этим поделать!!', event)
